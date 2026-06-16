@@ -1,3 +1,6 @@
-export default function PageName() {
-  return <div>PageName</div>;
+import React from 'react';
+import DashboardView from '@/features/dashboard/components/DashboardView';
+
+export default function DashboardPage() {
+  return <DashboardView />;
 }
