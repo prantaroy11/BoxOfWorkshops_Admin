@@ -8,11 +8,13 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
+  footer?: React.ReactNode;
   children: React.ReactNode;
   maxWidth?: string;
+  hideCloseButton?: boolean;
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-[500px]' }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, footer, children, maxWidth = 'max-w-[500px]', hideCloseButton = false }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -42,7 +44,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className={`bg-white rounded-[12px] shadow-xl w-full ${maxWidth} flex flex-col pointer-events-auto max-h-[90vh] overflow-hidden relative`}
             >
-              {title && (
+              {title && !hideCloseButton && (
                 <div className="flex items-start justify-between p-[24px] border-b border-[#f1f3f5]">
                   <div className="flex-1">{title}</div>
                   <button
@@ -53,7 +55,12 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
                   </button>
                 </div>
               )}
-              {!title && (
+              {title && hideCloseButton && (
+                <div className="p-[24px] border-b border-[#f1f3f5]">
+                  {title}
+                </div>
+              )}
+              {!title && !hideCloseButton && (
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100 z-10"
@@ -64,6 +71,11 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
               <div className="overflow-y-auto flex-1 custom-scrollbar">
                 {children}
               </div>
+              {footer && (
+                <div className="shrink-0 bg-white">
+                  {footer}
+                </div>
+              )}
             </motion.div>
           </div>
         </>

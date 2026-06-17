@@ -5,6 +5,8 @@ import { Search, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-
 import ActionMenu from '@/components/ui/ActionMenu';
 import SortMenu from '@/components/ui/SortMenu';
 import PractitionerProfileModal from './PractitionerProfileModal';
+import DeclinePractitionerModal from './DeclinePractitionerModal';
+import ApprovePractitionerModal from './ApprovePractitionerModal';
 import { api } from '@/lib/api';
 
 const PRACTITIONERS = [
@@ -27,49 +29,50 @@ const TABS = [
 export default function PractitionersView() {
   const [activeTab, setActiveTab] = useState('All');
   const [selectedPractitioner, setSelectedPractitioner] = useState<any>(null);
+  const [practitionerToDecline, setPractitionerToDecline] = useState<any>(null);
+  const [practitionerToApprove, setPractitionerToApprove] = useState<any>(null);
   const [pendingList, setPendingList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+// (fetching effect remains)
   useEffect(() => {
     async function fetchPending() {
-      if (activeTab === 'Pending') {
-        setIsLoading(true);
-        try {
-          const response = await api.get<any>('/practitioners?status=pending');
+      setIsLoading(true);
+      try {
+        const response = await api.get<any>('/practitioners?status=pending');
+        
+        const rawList = response?.data?.results || response?.data || response?.practitioners || response || [];
+        const list = Array.isArray(rawList) ? rawList : [];
+        
+        const mapped = list.map((p: any) => {
+          const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown';
+          const initials = name.substring(0, 2).toUpperCase() || 'U';
+          const joined = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
           
-          const rawList = response?.data?.results || response?.data || response?.practitioners || response || [];
-          const list = Array.isArray(rawList) ? rawList : [];
-          
-          const mapped = list.map((p: any) => {
-            const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown';
-            const initials = name.substring(0, 2).toUpperCase() || 'U';
-            const joined = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
-            
-            return {
-              ...p,
-              id: p._id || p.id,
-              name,
-              email: p.email,
-              avatar: initials,
-              bg: 'bg-[#e3f1ff]',
-              text: 'text-blue-600',
-              specialization: p.specialization || 'Yoga Specialization',
-              accountType: p.accountType || 'Individual',
-              experience: p.experience ? `${p.experience} Years` : '1 Years',
-              submittedOn: joined,
-            };
-          });
-          
-          setPendingList(mapped);
-        } catch (error) {
-          console.error('Failed to fetch pending practitioners:', error);
-        } finally {
-          setIsLoading(false);
-        }
+          return {
+            ...p,
+            id: p._id || p.id,
+            name,
+            email: p.email,
+            avatar: initials,
+            bg: 'bg-[#e3f1ff]',
+            text: 'text-blue-600',
+            specialization: p.specialization || 'Yoga Specialization',
+            accountType: p.accountType || 'Individual',
+            experience: p.experience ? `${p.experience} Years` : '1 Years',
+            submittedOn: joined,
+          };
+        });
+        
+        setPendingList(mapped);
+      } catch (error) {
+        console.error('Failed to fetch pending practitioners:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchPending();
-  }, [activeTab]);
+  }, []);
 
   const displayData = activeTab === 'Pending' ? pendingList : PRACTITIONERS;
 
@@ -83,6 +86,7 @@ export default function PractitionersView() {
         <div className="flex overflow-x-auto w-full xl:w-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.label;
+            const displayCount = tab.label === 'Pending' ? pendingList.length : tab.count;
             return (
               <button
                 key={tab.label}
@@ -90,7 +94,7 @@ export default function PractitionersView() {
                 className={`mr-[24px] pb-[12px] px-[8px] whitespace-nowrap text-[14px] font-medium transition-colors border-b-2 -mb-[2px] shrink-0 ${isActive ? 'text-[#4c6ef5] border-[#4c6ef5]' : 'text-slate-500 border-transparent hover:text-slate-800'
                   }`}
               >
-                {tab.label} <span className={`ml-1 text-[13px] ${isActive ? 'text-[#4c6ef5]' : 'text-slate-400'}`}>{tab.count}</span>
+                {tab.label} <span className={`ml-1 text-[13px] ${isActive ? 'text-[#4c6ef5]' : 'text-slate-400'}`}>{displayCount}</span>
               </button>
             );
           })}
@@ -212,6 +216,43 @@ export default function PractitionersView() {
         isOpen={!!selectedPractitioner} 
         onClose={() => setSelectedPractitioner(null)} 
         practitioner={selectedPractitioner} 
+        onDeclineClick={() => {
+          setPractitionerToDecline(selectedPractitioner);
+          setSelectedPractitioner(null);
+        }}
+        onApproveClick={() => {
+          setPractitionerToApprove(selectedPractitioner);
+          setSelectedPractitioner(null);
+        }}
+      />
+
+      {/* Decline Modal */}
+      <DeclinePractitionerModal
+        isOpen={!!practitionerToDecline}
+        onClose={() => setPractitionerToDecline(null)}
+        practitioner={practitionerToDecline}
+        onDecline={async (reason) => {
+          try {
+            await api.post(`/admin/approvals/practitioner/${practitionerToDecline.id}/reject`, {
+              remarks: reason,
+            });
+            setPendingList(prev => prev.filter(p => p.id !== practitionerToDecline.id));
+          } catch (error) {
+            console.error('Failed to reject practitioner:', error);
+            alert('Failed to decline practitioner. Please try again.');
+          }
+        }}
+      />
+
+      {/* Approve Modal */}
+      <ApprovePractitionerModal
+        isOpen={!!practitionerToApprove}
+        onClose={() => setPractitionerToApprove(null)}
+        practitioner={practitionerToApprove}
+        onApprove={() => {
+          console.log(`Approved ${practitionerToApprove?.name}.`);
+          setPendingList(prev => prev.filter(p => p.id !== practitionerToApprove.id));
+        }}
       />
 
     </div>
