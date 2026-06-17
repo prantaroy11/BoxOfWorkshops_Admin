@@ -6,7 +6,6 @@ import { Bell, Menu } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 
 export default function Header() {
-  const pathname = usePathname() || '';
   const toggleMobileSidebar = useUIStore((state) => state.toggleMobileSidebar);
   
   const title = 'Dashboard';

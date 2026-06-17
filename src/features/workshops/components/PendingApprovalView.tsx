@@ -225,7 +225,7 @@ export default function PendingApprovalView() {
             </div>
             <h2 className="text-[20px] font-bold text-[#1f2937] mb-3">Decline Workshop?</h2>
             <p className="text-[14px] text-[#6b7280] mb-8 leading-relaxed">
-              Are you sure you want to decline <strong className="font-semibold text-[#374151]">"{selectedWorkshop.title}"</strong>? The instructor will be notified.
+              Are you sure you want to decline <strong className="font-semibold text-[#374151]">&quot;{selectedWorkshop.title}&quot;</strong>? The instructor will be notified.
             </p>
             <div className="flex gap-3 w-full">
               <button 

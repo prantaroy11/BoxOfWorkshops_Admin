@@ -7,6 +7,7 @@ import { RotateCcw, CheckCircle2, MapPin, Mail } from 'lucide-react';
 interface PractitionerProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   practitioner: any;
 }
 

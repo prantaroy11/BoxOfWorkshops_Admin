@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import ActionMenu from '@/components/ui/ActionMenu';
 import SortMenu from '@/components/ui/SortMenu';
 import PractitionerProfileModal from './PractitionerProfileModal';
+import { api } from '@/lib/api';
 
 const PRACTITIONERS = [
   { id: 1, name: 'Samantha Nguyen', email: 'samantha.nguyen@email.com', avatar: 'SN', bg: 'bg-[#e3f1ff]', text: 'text-blue-600', workshops: 15, rating: 4.8, revenue: '$5,100', status: 'Approved', statusClass: 'text-[#38d39f]', joined: '12 Apr 2025', specialization: 'Yoga Specialization', accountType: 'Individual', experience: '3 Years', submittedOn: '12 Apr 2025' },
@@ -26,6 +27,51 @@ const TABS = [
 export default function PractitionersView() {
   const [activeTab, setActiveTab] = useState('All');
   const [selectedPractitioner, setSelectedPractitioner] = useState<any>(null);
+  const [pendingList, setPendingList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchPending() {
+      if (activeTab === 'Pending') {
+        setIsLoading(true);
+        try {
+          const response = await api.get<any>('/practitioners?status=pending');
+          
+          const rawList = response?.data?.results || response?.data || response?.practitioners || response || [];
+          const list = Array.isArray(rawList) ? rawList : [];
+          
+          const mapped = list.map((p: any) => {
+            const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown';
+            const initials = name.substring(0, 2).toUpperCase() || 'U';
+            const joined = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+            
+            return {
+              ...p,
+              id: p._id || p.id,
+              name,
+              email: p.email,
+              avatar: initials,
+              bg: 'bg-[#e3f1ff]',
+              text: 'text-blue-600',
+              specialization: p.specialization || 'Yoga Specialization',
+              accountType: p.accountType || 'Individual',
+              experience: p.experience ? `${p.experience} Years` : '1 Years',
+              submittedOn: joined,
+            };
+          });
+          
+          setPendingList(mapped);
+        } catch (error) {
+          console.error('Failed to fetch pending practitioners:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+    fetchPending();
+  }, [activeTab]);
+
+  const displayData = activeTab === 'Pending' ? pendingList : PRACTITIONERS;
 
   return (
     <div className="bg-white rounded-[8px] shadow-[0_1px_4px_rgba(0,0,0,0.1)] p-[16px] sm:p-[24px] flex flex-col min-h-[calc(100vh-170px)]">
@@ -93,9 +139,25 @@ export default function PractitionersView() {
             </tr>
           </thead>
           <tbody>
-            {PRACTITIONERS.map((practitioner) => (
-              <tr key={practitioner.id} className="border-b border-[#e9ecef] hover:bg-slate-50 transition-colors">
-                <td className="py-4 pr-4">
+            {isLoading && activeTab === 'Pending' ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#4c6ef5]" />
+                    <span>Loading practitioners...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : displayData.length === 0 && activeTab === 'Pending' ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-500">
+                  No pending practitioners found.
+                </td>
+              </tr>
+            ) : (
+              displayData.map((practitioner) => (
+                <tr key={practitioner.id} className="border-b border-[#e9ecef] hover:bg-slate-50 transition-colors">
+                  <td className="py-4 pr-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-[36px] h-[36px] rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${practitioner.bg} ${practitioner.text}`}>
                       {practitioner.avatar}
@@ -139,7 +201,8 @@ export default function PractitionersView() {
                   )}
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>
