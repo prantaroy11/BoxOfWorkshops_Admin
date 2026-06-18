@@ -2,12 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // const token = request.cookies.get('admin_token')?.value;
-  // const isLoginPage = request.nextUrl.pathname === '/login';
+  const token = request.cookies.get('admin_token')?.value;
+  const isLoginPage = request.nextUrl.pathname === '/login';
 
-  /* 
-  Temporarily bypassed until Login page design is ready.
-  
   if (!token && !isLoginPage) {
     return NextResponse.redirect(
       new URL('/login', request.url)
@@ -19,7 +16,6 @@ export function middleware(request: NextRequest) {
       new URL('/dashboard', request.url)
     );
   }
-  */
 
   return NextResponse.next();
 }

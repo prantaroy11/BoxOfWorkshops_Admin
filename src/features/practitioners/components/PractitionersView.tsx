@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import ActionMenu from '@/components/ui/ActionMenu';
 import SortMenu from '@/components/ui/SortMenu';
 import PractitionerProfileModal from './PractitionerProfileModal';
@@ -59,7 +60,7 @@ export default function PractitionersView() {
             text: 'text-blue-600',
             specialization: p.specialization || 'Yoga Specialization',
             accountType: p.accountType || 'Individual',
-            experience: p.experience ? `${p.experience} Years` : '1 Years',
+            experience: p.yearsExperience != null ? `${p.yearsExperience} Years` : 'Not specified',
             submittedOn: joined,
           };
         });
@@ -196,7 +197,7 @@ export default function PractitionersView() {
                   {activeTab === 'Pending' ? (
                     <button 
                       onClick={() => setSelectedPractitioner(practitioner)}
-                      className="text-[#38d39f] hover:text-[#2bb385] text-[13px] font-medium transition-colors"
+                      className="text-[#38d39f] hover:text-[#2bb385] text-[13px] font-medium transition-colors cursor-pointer"
                     >
                       View Profile
                     </button>
@@ -237,9 +238,10 @@ export default function PractitionersView() {
               remarks: reason,
             });
             setPendingList(prev => prev.filter(p => p.id !== practitionerToDecline.id));
+            toast.success(`Successfully declined ${practitionerToDecline.name}`);
           } catch (error) {
             console.error('Failed to reject practitioner:', error);
-            alert('Failed to decline practitioner. Please try again.');
+            toast.error('Failed to decline practitioner. Please try again.');
           }
         }}
       />
@@ -249,9 +251,17 @@ export default function PractitionersView() {
         isOpen={!!practitionerToApprove}
         onClose={() => setPractitionerToApprove(null)}
         practitioner={practitionerToApprove}
-        onApprove={() => {
-          console.log(`Approved ${practitionerToApprove?.name}.`);
-          setPendingList(prev => prev.filter(p => p.id !== practitionerToApprove.id));
+        onApprove={async () => {
+          try {
+            await api.post(`/admin/approvals/practitioner/${practitionerToApprove.id}/approve`, {
+              notes: 'Approved via admin dashboard',
+            });
+            setPendingList(prev => prev.filter(p => p.id !== practitionerToApprove.id));
+            toast.success(`Successfully approved ${practitionerToApprove.name}`);
+          } catch (error) {
+            console.error('Failed to approve practitioner:', error);
+            toast.error('Failed to approve practitioner. Please try again.');
+          }
         }}
       />
 
