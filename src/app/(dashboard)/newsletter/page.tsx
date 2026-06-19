@@ -1,3 +1,5 @@
+import { NewsletterApproval } from '@/features/newsletter/components/NewsletterApproval';
+
 export default function PageName() {
-  return <div>PageName</div>;
+  return <NewsletterApproval />;
 }
