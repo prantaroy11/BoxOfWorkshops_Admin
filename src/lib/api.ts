@@ -17,6 +17,7 @@ async function request<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...((options.headers as Record<string, string>) || {}),
     },
+    cache: 'no-store', // Prevent Next.js from caching API calls
     ...options,
   };
 

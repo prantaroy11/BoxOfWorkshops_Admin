@@ -1,86 +1,73 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, AlertCircle, MessageSquare, X } from 'lucide-react';
-
-const WORKSHOPS = [
-  {
-    id: 1,
-    title: 'Watercolor Painting Basics',
-    author: 'June Cooper',
-    appliedDate: '14 May 2024',
-    category: 'Art & Design',
-    dateTime: '25 May 2024, 10:00 AM',
-    price: '$49.00',
-    duration: '2 Hours',
-    seats: 20,
-    description: 'Learn the fundamentals of watercolor painting in this beginner-friendly workshop. All materials included.',
-    imageColor: 'from-orange-200 to-amber-200'
-  },
-  {
-    id: 2,
-    title: 'Advanced Digital Marketing',
-    author: 'Jacob Jones',
-    appliedDate: '14 May 2024',
-    category: 'Marketing',
-    dateTime: '28 May 2024, 2:00 PM',
-    price: '$89.00',
-    duration: '3 Hours',
-    seats: 50,
-    description: 'Master advanced digital marketing strategies including SEO, PPC, and social media advertising in this comprehensive deep dive.',
-    imageColor: 'from-blue-200 to-cyan-200'
-  },
-  {
-    id: 3,
-    title: 'Public Speaking Masterclass',
-    author: 'Cameron Williamson',
-    appliedDate: '15 May 2024',
-    category: 'Personal Development',
-    dateTime: '02 Jun 2024, 9:00 AM',
-    price: '$120.00',
-    duration: '4 Hours',
-    seats: 15,
-    description: 'Overcome stage fright and deliver compelling presentations with confidence in this interactive masterclass.',
-    imageColor: 'from-emerald-200 to-teal-200'
-  },
-  {
-    id: 4,
-    title: 'Financial Planning 101',
-    author: 'Dennis Robertson',
-    appliedDate: '18 May 2024',
-    category: 'Finance',
-    dateTime: '10 Jun 2024, 6:00 PM',
-    price: '$35.00',
-    duration: '1.5 Hours',
-    seats: 100,
-    description: 'A practical guide to personal finance covering budgeting, saving, and basic investment strategies for young professionals.',
-    imageColor: 'from-purple-200 to-fuchsia-200'
-  }
-];
+import React, { useState, useEffect } from 'react';
+import { Search, AlertCircle, Loader2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import { WorkshopListing, PaginatedResponse } from '@/features/workshops/types';
 
 export default function PendingApprovalView() {
   const [activeTab, setActiveTab] = useState('Pending');
-  const [selectedId, setSelectedId] = useState(1);
+  const [workshops, setWorkshops] = useState<WorkshopListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [requestNotes, setRequestNotes] = useState('');
-  const [selectedSuggestions, setSelectedSuggestions] = useState<string[]>([]);
 
-  const suggestions = [
-    "Update workshop description",
-    "Correct pricing information",
-    "Add more detail to schedule",
-    "Fix instructor bio",
-    "Update category"
-  ];
-  
-  const toggleSuggestion = (s: string) => {
-    setSelectedSuggestions(prev => 
-      prev.includes(s) ? prev.filter(item => item !== s) : [...prev, s]
-    );
+  useEffect(() => {
+    fetchPendingWorkshops();
+  }, []);
+
+  const fetchPendingWorkshops = async () => {
+    try {
+      setLoading(true);
+      // The backend returns { success: true, data: { ...paginate object... } }
+      // So res.data might be the paginate object or the array directly
+      const res = await api.get<{ data: PaginatedResponse<WorkshopListing> | WorkshopListing[] }>('/admin/listings?is_approved=false&visibility_status=draft');
+      
+      let fetchedWorkshops: WorkshopListing[] = [];
+      if (Array.isArray(res.data)) {
+        fetchedWorkshops = res.data;
+      } else if (res.data && typeof res.data === 'object') {
+        fetchedWorkshops = res.data.results || res.data.data || res.data.rows || res.data.docs || [];
+      }
+      
+      setWorkshops(fetchedWorkshops);
+      if (fetchedWorkshops.length > 0) {
+        setSelectedId(fetchedWorkshops[0].id);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch pending workshops');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const selectedWorkshop = WORKSHOPS.find(w => w.id === selectedId) || WORKSHOPS[0];
+  const handleAction = async (approved: boolean) => {
+    if (!selectedId) return;
+    try {
+      setActionLoading(true);
+      await api.patch(`/admin/listings/${selectedId}/approve`, { approved });
+      toast.success(`Workshop ${approved ? 'approved' : 'declined'} successfully`);
+      
+      setWorkshops(prev => {
+        const updated = prev.filter(w => w.id !== selectedId);
+        if (updated.length > 0) {
+          setSelectedId(updated[0].id);
+        } else {
+          setSelectedId(null);
+        }
+        return updated;
+      });
+      setIsDeclineModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || `Failed to ${approved ? 'approve' : 'decline'} workshop`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const selectedWorkshop = workshops.find(w => w.id === selectedId) || null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,7 +93,7 @@ export default function PendingApprovalView() {
             activeTab === 'Pending' ? 'text-[#8b5cf6] border-[#8b5cf6]' : 'text-slate-500 border-transparent hover:text-slate-800'
           }`}
         >
-          Pending <span className={`ml-1 text-[13px] font-medium px-2 py-0.5 rounded-full ${activeTab === 'Pending' ? 'bg-[#f3e8ff] text-[#8b5cf6]' : 'text-slate-400'}`}>34</span>
+          Pending <span className={`ml-1 text-[13px] font-medium px-2 py-0.5 rounded-full ${activeTab === 'Pending' ? 'bg-[#f3e8ff] text-[#8b5cf6]' : 'text-slate-400'}`}>{workshops.length}</span>
         </button>
         <button
           onClick={() => setActiveTab('Rejected')}
@@ -114,110 +101,146 @@ export default function PendingApprovalView() {
             activeTab === 'Rejected' ? 'text-[#8b5cf6] border-[#8b5cf6]' : 'text-slate-500 border-transparent hover:text-slate-800'
           }`}
         >
-          Rejected <span className={`ml-1 text-[13px] font-medium text-slate-400`}>40</span>
+          Rejected <span className={`ml-1 text-[13px] font-medium text-slate-400`}>0</span>
         </button>
       </div>
 
-      {/* Master Detail Split */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* Left Column (List) */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] flex flex-col gap-3 shrink-0">
-          {WORKSHOPS.map((workshop) => {
-            const isActive = workshop.id === selectedId;
-            return (
-              <div 
-                key={workshop.id}
-                onClick={() => setSelectedId(workshop.id)}
-                className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border ${
-                  isActive 
-                    ? 'bg-[#fbf9ff] border-[#8b5cf6] shadow-[0_2px_10px_rgba(139,92,246,0.1)]' 
-                    : 'bg-white border-transparent hover:border-[#e9ecef] shadow-[0_1px_3px_rgba(0,0,0,0.05)]'
-                }`}
-              >
-                {/* Thumbnail */}
-                <div className={`w-[60px] h-[60px] rounded-xl bg-gradient-to-br ${workshop.imageColor} shrink-0`}></div>
-                
-                {/* Info */}
-                <div className="flex flex-col">
-                  <h3 className={`font-semibold text-[15px] mb-0.5 ${isActive ? 'text-[#8b5cf6]' : 'text-slate-800'}`}>
-                    {workshop.title}
-                  </h3>
-                  <p className="text-[13px] text-slate-500 mb-1">By {workshop.author}</p>
-                  <p className="text-[12px] text-slate-400">Applied on {workshop.appliedDate}</p>
+      {/* Main Content Area */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64 w-full">
+          <Loader2 className="w-8 h-8 animate-spin text-[#8b5cf6]" />
+        </div>
+      ) : workshops.length === 0 ? (
+        <div className="flex flex-col items-center justify-center bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] h-64 w-full text-slate-500">
+          <p className="text-[16px] font-medium">No pending workshops to approve.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          
+          {/* Left Column (List) */}
+          <div className="w-full lg:w-[380px] xl:w-[420px] flex flex-col gap-3 shrink-0">
+            {workshops.map((workshop, index) => {
+              const isActive = workshop.id === selectedId;
+              const title = workshop.title || 'Untitled Workshop';
+              const authorName = workshop.practitioner 
+                ? workshop.practitioner.name || workshop.practitioner.contactPerson || 'Unknown Author'
+                : 'Unknown Author';
+              const appliedDate = workshop.createdAt ? new Date(workshop.createdAt).toLocaleDateString() : 'N/A';
+              
+              // Alternate gradient colors based on index for some variety
+              const colorSets = [
+                'from-orange-200 to-amber-200',
+                'from-blue-200 to-cyan-200',
+                'from-emerald-200 to-teal-200',
+                'from-purple-200 to-fuchsia-200'
+              ];
+              const imageColor = colorSets[index % colorSets.length];
+
+              return (
+                <div 
+                  key={workshop.id}
+                  onClick={() => setSelectedId(workshop.id)}
+                  className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border ${
+                    isActive 
+                      ? 'bg-[#fbf9ff] border-[#8b5cf6] shadow-[0_2px_10px_rgba(139,92,246,0.1)]' 
+                      : 'bg-white border-transparent hover:border-[#e9ecef] shadow-[0_1px_3px_rgba(0,0,0,0.05)]'
+                  }`}
+                >
+                  {/* Thumbnail */}
+                  <div className={`w-[60px] h-[60px] rounded-xl bg-gradient-to-br ${imageColor} shrink-0`}></div>
+                  
+                  {/* Info */}
+                  <div className="flex flex-col">
+                    <h3 className={`font-semibold text-[15px] mb-0.5 ${isActive ? 'text-[#8b5cf6]' : 'text-slate-800'}`}>
+                      {title}
+                    </h3>
+                    <p className="text-[13px] text-slate-500 mb-1">By {authorName}</p>
+                    <p className="text-[12px] text-slate-400">Applied on {appliedDate}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right Column (Detail View) */}
+          {selectedWorkshop && (
+            <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden w-full">
+              {/* Banner */}
+              <div className={`w-full h-[220px] bg-gradient-to-br from-indigo-200 to-purple-200`}></div>
+              
+              {/* Content */}
+              <div className="p-8">
+                <h2 className="text-[24px] font-bold text-slate-800 mb-1">{selectedWorkshop.title || 'Untitled'}</h2>
+                <p className="text-[15px] text-slate-500 mb-8">
+                  By {selectedWorkshop.practitioner ? selectedWorkshop.practitioner.name || selectedWorkshop.practitioner.contactPerson || 'Unknown Author' : 'Unknown Author'}
+                </p>
+
+                {/* Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 mb-8">
+                  <div>
+                    <p className="text-[13px] text-slate-400 mb-1 font-medium">Category</p>
+                    <p className="text-[15px] font-semibold text-slate-800">
+                      {selectedWorkshop.workshop?.categoryTags && selectedWorkshop.workshop.categoryTags.length > 0
+                        ? selectedWorkshop.workshop.categoryTags.join(', ')
+                        : selectedWorkshop.subcategories && selectedWorkshop.subcategories.length > 0
+                        ? selectedWorkshop.subcategories.map((s: any) => s.name).join(', ')
+                        : selectedWorkshop.category?.name || selectedWorkshop.serviceType?.name || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-slate-400 mb-1 font-medium">Date & Time</p>
+                    <p className="text-[15px] font-semibold text-slate-800">
+                      {selectedWorkshop.workshop?.availability?.dateTime ? new Date(selectedWorkshop.workshop.availability.dateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-slate-400 mb-1 font-medium">Price</p>
+                    <p className="text-[15px] font-semibold text-slate-800">£{selectedWorkshop.priceFrom || selectedWorkshop.price || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-slate-400 mb-1 font-medium">Duration</p>
+                    <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.workshop?.duration || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-slate-400 mb-1 font-medium">Seats</p>
+                    <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.workshop?.maxGroupSize || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="mb-10">
+                  <p className="text-[13px] text-slate-400 mb-2 font-medium">Description</p>
+                  <p className="text-[14px] text-slate-600 leading-relaxed">
+                    {selectedWorkshop.shortDescription || selectedWorkshop.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <button 
+                    onClick={() => setIsDeclineModalOpen(true)}
+                    disabled={actionLoading}
+                    className="px-6 py-2.5 rounded-lg bg-[#ff4c4c] text-white font-medium text-[14px] hover:bg-red-600 transition-colors disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                  <button 
+                    onClick={() => handleAction(true)}
+                    disabled={actionLoading}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#00c875] text-white font-medium text-[14px] hover:bg-[#00a862] transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Approve
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
-
-        {/* Right Column (Detail View) */}
-        <div className="flex-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden w-full">
-          {/* Banner */}
-          <div className={`w-full h-[220px] bg-gradient-to-br ${selectedWorkshop.imageColor}`}></div>
-          
-          {/* Content */}
-          <div className="p-8">
-            <h2 className="text-[24px] font-bold text-slate-800 mb-1">{selectedWorkshop.title}</h2>
-            <p className="text-[15px] text-slate-500 mb-8">By {selectedWorkshop.author}</p>
-
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 mb-8">
-              <div>
-                <p className="text-[13px] text-slate-400 mb-1 font-medium">Category</p>
-                <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.category}</p>
-              </div>
-              <div>
-                <p className="text-[13px] text-slate-400 mb-1 font-medium">Date & Time</p>
-                <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.dateTime}</p>
-              </div>
-              <div>
-                <p className="text-[13px] text-slate-400 mb-1 font-medium">Price</p>
-                <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.price}</p>
-              </div>
-              <div>
-                <p className="text-[13px] text-slate-400 mb-1 font-medium">Duration</p>
-                <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.duration}</p>
-              </div>
-              <div>
-                <p className="text-[13px] text-slate-400 mb-1 font-medium">Seats</p>
-                <p className="text-[15px] font-semibold text-slate-800">{selectedWorkshop.seats}</p>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="mb-10">
-              <p className="text-[13px] text-slate-400 mb-2 font-medium">Description</p>
-              <p className="text-[14px] text-slate-600 leading-relaxed">
-                {selectedWorkshop.description}
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-4">
-              <button 
-                onClick={() => setIsRequestModalOpen(true)}
-                className="px-6 py-2.5 rounded-lg border border-[#ced4da] text-slate-600 font-medium text-[14px] hover:bg-slate-50 transition-colors"
-              >
-                Request Changes
-              </button>
-              <button 
-                onClick={() => setIsDeclineModalOpen(true)}
-                className="px-6 py-2.5 rounded-lg bg-[#ff4c4c] text-white font-medium text-[14px] hover:bg-red-600 transition-colors"
-              >
-                Decline
-              </button>
-              <button className="px-6 py-2.5 rounded-lg bg-[#00c875] text-white font-medium text-[14px] hover:bg-[#00a862] transition-colors">
-                Approve
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {/* Decline Modal Overlay */}
-      {isDeclineModalOpen && (
+      {isDeclineModalOpen && selectedWorkshop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-[16px] p-8 w-full max-w-[360px] text-center shadow-xl">
             <div className="w-14 h-14 bg-[#fff1f2] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -230,95 +253,18 @@ export default function PendingApprovalView() {
             <div className="flex gap-3 w-full">
               <button 
                 onClick={() => setIsDeclineModalOpen(false)}
-                className="flex-1 py-2.5 rounded-lg border border-[#e5e7eb] text-[#374151] font-medium text-[14px] hover:bg-slate-50 transition-colors"
+                disabled={actionLoading}
+                className="flex-1 py-2.5 rounded-lg border border-[#e5e7eb] text-[#374151] font-medium text-[14px] hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
-                onClick={() => setIsDeclineModalOpen(false)}
-                className="flex-1 py-2.5 rounded-lg bg-[#ff4c4c] text-white font-medium text-[14px] hover:bg-red-600 transition-colors"
+                onClick={() => handleAction(false)}
+                disabled={actionLoading}
+                className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-lg bg-[#ff4c4c] text-white font-medium text-[14px] hover:bg-red-600 transition-colors disabled:opacity-50"
               >
+                {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Yes, Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Request Changes Modal Overlay */}
-      {isRequestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-[500px] shadow-xl flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-start justify-between p-6 border-b border-[#f1f3f5]">
-              <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#fff8eb] flex items-center justify-center text-[#f5b041] shrink-0">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-[18px] font-bold text-[#1f2937] mb-0.5">Request Changes</h2>
-                  <p className="text-[13px] text-slate-400">{selectedWorkshop.title}</p>
-                </div>
-              </div>
-              <button onClick={() => setIsRequestModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6">
-              <h3 className="text-[14px] font-semibold text-[#374151] mb-3">Quick suggestions</h3>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {suggestions.map(s => (
-                  <button 
-                    key={s} 
-                    onClick={() => toggleSuggestion(s)}
-                    className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
-                      selectedSuggestions.includes(s) 
-                        ? 'bg-[#fbf9ff] text-[#8b5cf6] border border-[#8b5cf6]' 
-                        : 'bg-white text-slate-600 border border-[#e2e8f0] hover:bg-slate-50'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1 mb-2">
-                <h3 className="text-[14px] font-semibold text-[#374151]">Additional notes</h3>
-                <span className="text-[13px] text-slate-400">(required if no suggestion selected)</span>
-              </div>
-              <div className="relative">
-                <textarea
-                  value={requestNotes}
-                  onChange={(e) => setRequestNotes(e.target.value)}
-                  placeholder="Describe what needs to be changed or improved..."
-                  className="w-full h-[120px] p-3 pb-8 text-[14px] text-slate-700 border border-[#e2e8f0] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#f5b041] focus:border-transparent"
-                ></textarea>
-                <div className="absolute bottom-3 right-3 text-[12px] text-slate-400">
-                  {requestNotes.length}/300
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 pt-2 bg-white">
-              <button 
-                onClick={() => setIsRequestModalOpen(false)}
-                className="px-5 py-2.5 rounded-lg border border-[#e2e8f0] text-[#374151] font-medium text-[14px] hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  setIsRequestModalOpen(false);
-                  setRequestNotes('');
-                  setSelectedSuggestions([]);
-                }}
-                disabled={selectedSuggestions.length === 0 && requestNotes.trim().length === 0}
-                className="px-5 py-2.5 rounded-lg bg-[#facb88] text-white font-medium text-[14px] hover:bg-[#f5b041] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Send Request
               </button>
             </div>
           </div>

@@ -1,94 +1,51 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
-import ActionMenu from '@/components/ui/ActionMenu';
-
-const WORKSHOPS = [
-  { 
-    id: 1, 
-    title: 'Mindfulness & Meditation Basics', 
-    subtitle: 'Effective ways to manage daily', 
-    imageColor: 'from-orange-400 to-red-400',
-    category: 'Mindfulness', catBg: 'bg-[#e3f9f0]', catText: 'text-[#1fa46b]',
-    instructor: 'Sarah Parker', 
-    duration: '2h 30m', 
-    regCurrent: 32, regMax: 50, 
-    price: '$40.00', 
-    status: 'Upcoming', statusBg: 'bg-[#e7f5ff]', statusText: 'text-[#339af0]' 
-  },
-  { 
-    id: 2, 
-    title: 'Stress Management Workshop', 
-    subtitle: 'Practical techniques for modern', 
-    imageColor: 'from-blue-400 to-indigo-400',
-    category: 'Mindfulness', catBg: 'bg-[#e3f9f0]', catText: 'text-[#1fa46b]',
-    instructor: 'James Lee', 
-    duration: '2h', 
-    regCurrent: 48, regMax: 48, 
-    price: '$35.00', 
-    status: 'Full', statusBg: 'bg-[#fccae2]', statusText: 'text-[#e64980]' 
-  },
-  { 
-    id: 3, 
-    title: 'Yoga for Beginners', 
-    subtitle: 'Discover the power of natural', 
-    imageColor: 'from-green-400 to-emerald-400',
-    category: 'Yoga', catBg: 'bg-[#ebfbee]', catText: 'text-[#40c057]',
-    instructor: 'Emma Wilson', 
-    duration: '1h 30m', 
-    regCurrent: 18, regMax: 30, 
-    price: '$45.00', 
-    status: 'Upcoming', statusBg: 'bg-[#e7f5ff]', statusText: 'text-[#339af0]' 
-  },
-  { 
-    id: 4, 
-    title: 'Sound Healing Therapy', 
-    subtitle: 'Experience the magic of sound', 
-    imageColor: 'from-purple-400 to-fuchsia-400',
-    category: 'Meditation', catBg: 'bg-[#f3f0ff]', catText: 'text-[#845ef7]',
-    instructor: 'Chris Olive', 
-    duration: '2h 45m', 
-    regCurrent: 'in slots', regMax: null, 
-    price: '$55.00', 
-    status: 'Ongoing', statusBg: 'bg-[#fff4e6]', statusText: 'text-[#fd7e14]' 
-  },
-  { 
-    id: 5, 
-    title: 'Inner Peace & Balance', 
-    subtitle: 'Achieve harmony through these', 
-    imageColor: 'from-teal-400 to-cyan-400',
-    category: 'Mindfulness', catBg: 'bg-[#e3f9f0]', catText: 'text-[#1fa46b]',
-    instructor: 'David Smith', 
-    duration: '2h', 
-    regCurrent: 25, regMax: 11, 
-    price: '$40.00', 
-    status: 'Ongoing', statusBg: 'bg-[#fff4e6]', statusText: 'text-[#fd7e14]' 
-  },
-  { 
-    id: 6, 
-    title: 'Aromatherapy Essentials', 
-    subtitle: 'Harness the power of essential', 
-    imageColor: 'from-yellow-400 to-orange-400',
-    category: 'Nutrition', catBg: 'bg-[#fff4e6]', catText: 'text-[#fd7e14]',
-    instructor: 'Sophia Martinez', 
-    duration: '1h 45m', 
-    regCurrent: 22, regMax: 30, 
-    price: '$38.00', 
-    status: 'Upcoming', statusBg: 'bg-[#e7f5ff]', statusText: 'text-[#339af0]' 
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { Search, SlidersHorizontal, Eye, Loader2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import { WorkshopListing, PaginatedResponse } from '@/features/workshops/types';
 
 const TABS = [
-  { label: 'All', count: '(138)' },
-  { label: 'Upcoming', count: '(42)' },
-  { label: 'Ongoing', count: '(20)' },
-  { label: 'Completed', count: '(315)' },
-  { label: 'Cancelled', count: '(8)' },
+  { label: 'All', key: 'all' },
+  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Ongoing', key: 'ongoing' },
+  { label: 'Completed', key: 'completed' },
+  { label: 'Cancelled', key: 'cancelled' },
 ];
 
 export default function WorkshopsView() {
   const [activeTab, setActiveTab] = useState('All');
+  const [workshops, setWorkshops] = useState<WorkshopListing[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWorkshops();
+  }, []);
+
+  const fetchWorkshops = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get<{ data: PaginatedResponse<WorkshopListing> | WorkshopListing[] }>('/admin/listings');
+      
+      let fetchedWorkshops: WorkshopListing[] = [];
+      if (Array.isArray(res.data)) {
+        fetchedWorkshops = res.data;
+      } else if (res.data && typeof res.data === 'object') {
+        fetchedWorkshops = res.data.results || res.data.data || res.data.rows || res.data.docs || [];
+      }
+      
+      setWorkshops(fetchedWorkshops);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to fetch workshops');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Simple client-side filtering placeholder
+  // Since we might not have all these statuses from the API yet
+  const filteredWorkshops = workshops;
 
   return (
     <div className="bg-white rounded-[8px] shadow-[0_1px_4px_rgba(0,0,0,0.1)] p-[24px]">
@@ -99,6 +56,8 @@ export default function WorkshopsView() {
         <div className="flex flex-wrap w-full xl:w-auto">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.label;
+            // Since we only fetched approved ones, we just show total count for 'All' for now
+            const count = tab.label === 'All' ? `(${workshops.length})` : '(0)';
             return (
               <button
                 key={tab.label}
@@ -107,7 +66,7 @@ export default function WorkshopsView() {
                   isActive ? 'text-[#8b5cf6] border-[#8b5cf6]' : 'text-slate-500 border-transparent hover:text-slate-800'
                 }`}
               >
-                {tab.label} <span className={`ml-1 text-[13px] ${isActive ? 'text-[#8b5cf6]' : 'text-slate-400'}`}>{tab.count}</span>
+                {tab.label} <span className={`ml-1 text-[13px] ${isActive ? 'text-[#8b5cf6]' : 'text-slate-400'}`}>{count}</span>
               </button>
             );
           })}
@@ -130,98 +89,136 @@ export default function WorkshopsView() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-[14px] whitespace-nowrap">
-          <thead>
-            <tr className="border-b border-[#f1f3f5] text-[12px] font-semibold text-slate-500 uppercase tracking-wider">
-              <th className="py-4 pr-4 font-semibold">Workshop</th>
-              <th className="py-4 px-4 font-semibold">Categories</th>
-              <th className="py-4 px-4 font-semibold">Instructor</th>
-              <th className="py-4 px-4 font-semibold">Duration</th>
-              <th className="py-4 px-4 font-semibold">Registration</th>
-              <th className="py-4 px-4 font-semibold">Price</th>
-              <th className="py-4 px-4 font-semibold">Status</th>
-              <th className="py-4 px-4 font-semibold text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {WORKSHOPS.map((workshop) => (
-              <tr key={workshop.id} className="border-b border-[#e9ecef] hover:bg-slate-50 transition-colors">
-                <td className="py-4 pr-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-[48px] h-[48px] rounded-md bg-gradient-to-br ${workshop.imageColor} shrink-0`}></div>
-                    <div>
-                      <div className="font-semibold text-slate-800">{workshop.title}</div>
-                      <div className="text-[13px] text-[#adb5bd]">{workshop.subtitle}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 px-4">
-                  <span className={`px-[8px] py-[2px] rounded-[4px] text-[12px] font-medium ${workshop.catBg} ${workshop.catText}`}>
-                    {workshop.category}
-                  </span>
-                </td>
-                <td className="py-4 px-4 font-medium text-slate-700">{workshop.instructor}</td>
-                <td className="py-4 px-4 font-medium text-slate-700">{workshop.duration}</td>
-                <td className="py-4 px-4">
-                  {typeof workshop.regCurrent === 'number' && workshop.regMax !== null ? (
-                    <div className="flex flex-col gap-1 w-[80px]">
-                      <span className="text-[13px] font-medium text-slate-700">{workshop.regCurrent} / {workshop.regMax}</span>
-                      <div className="w-full bg-[#ececec] h-[6px] rounded-full overflow-hidden">
-                        <div 
-                          className="bg-[#8b5cf6] h-full rounded-full" 
-                          style={{ width: `${Math.min(100, (workshop.regCurrent / workshop.regMax) * 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1 w-[80px]">
-                      <span className="text-[13px] font-medium text-slate-700">{workshop.regCurrent}</span>
-                      <div className="w-full bg-[#ececec] h-[6px] rounded-full overflow-hidden">
-                        <div className="bg-[#ececec] h-full rounded-full w-0"></div>
-                      </div>
-                    </div>
-                  )}
-                </td>
-                <td className="py-4 px-4 font-medium text-slate-700">{workshop.price}</td>
-                <td className="py-4 px-4">
-                  <span className={`px-[10px] py-[4px] rounded-full text-[12px] font-semibold ${workshop.statusBg} ${workshop.statusText}`}>
-                    {workshop.status}
-                  </span>
-                </td>
-                <td className="py-4 px-4 text-center">
-                  <ActionMenu />
-                </td>
+      <div className="overflow-auto max-h-[calc(100vh-250px)]">
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 className="w-8 h-8 animate-spin text-[#8b5cf6]" />
+          </div>
+        ) : filteredWorkshops.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+            <p className="text-[16px] font-medium">No approved workshops found.</p>
+          </div>
+        ) : (
+          <table className="w-full text-left text-[14px] whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-[#f1f3f5] text-[12px] font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="py-4 pr-4 font-semibold">Workshop</th>
+                <th className="py-4 px-4 font-semibold">Categories</th>
+                <th className="py-4 px-4 font-semibold">Instructor</th>
+                <th className="py-4 px-4 font-semibold">Duration</th>
+                <th className="py-4 px-4 font-semibold">Registration</th>
+                <th className="py-4 px-4 font-semibold">Price</th>
+                <th className="py-4 px-4 font-semibold">Status</th>
+                <th className="py-4 px-4 font-semibold text-center">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredWorkshops.map((workshop, index) => {
+                const title = workshop.title || 'Untitled Workshop';
+                const subtitle = workshop.shortDescription || workshop.description ? String(workshop.shortDescription || workshop.description).substring(0, 30) + '...' : 'No description';
+                const instructorName = workshop.practitioner 
+                  ? workshop.practitioner.name || workshop.practitioner.contactPerson || 'Unknown Instructor'
+                  : 'Unknown Instructor';
+                
+                let categoryText = workshop.category?.name || workshop.serviceType?.name || 'Uncategorized';
+                if (workshop.workshop?.categoryTags && workshop.workshop.categoryTags.length > 0) {
+                  categoryText = workshop.workshop.categoryTags.slice(0, 3).join(', ');
+                  if (workshop.workshop.categoryTags.length > 3) categoryText += '...';
+                } else if (workshop.subcategories && workshop.subcategories.length > 0) {
+                  categoryText = workshop.subcategories.slice(0, 3).map((s: any) => s.name).join(', ');
+                  if (workshop.subcategories.length > 3) categoryText += '...';
+                }
+                const price = `£${workshop.priceFrom || workshop.price || 0}`;
+                const duration = workshop.workshop?.duration ? workshop.workshop.duration : 'N/A';
+                
+                // Color alternates
+                const colorSets = [
+                  'from-orange-400 to-red-400',
+                  'from-blue-400 to-indigo-400',
+                  'from-green-400 to-emerald-400',
+                  'from-purple-400 to-fuchsia-400',
+                  'from-teal-400 to-cyan-400',
+                  'from-yellow-400 to-orange-400'
+                ];
+                const imageColor = colorSets[index % colorSets.length];
 
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-[24px] text-[13px] text-slate-500 gap-4">
-        <div>Showing 1 to 6 of 138 results</div>
-        <div className="flex items-center gap-1">
-          <button className="w-8 h-8 flex items-center justify-center rounded-md border border-[#e9ecef] hover:bg-slate-50 transition-colors text-slate-400">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md bg-[#8b5cf6] text-white font-medium">
-            1
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md border border-[#e9ecef] hover:bg-slate-50 transition-colors font-medium">
-            2
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md border border-[#e9ecef] hover:bg-slate-50 transition-colors font-medium">
-            3
-          </button>
-          <span className="px-1 text-slate-400">...</span>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md border border-[#e9ecef] hover:bg-slate-50 transition-colors font-medium">
-            23
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-md border border-[#e9ecef] hover:bg-slate-50 transition-colors text-slate-400">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+                // Registration calculation
+                const regCurrent = 0; // Not available in CommonListing easily
+                const regMax = workshop.workshop?.maxGroupSize || 0;
+                
+                // Status mapping
+                const isApproved = workshop.isApproved;
+                const isSuspended = workshop.visibilityStatus === 'suspended';
+                
+                let status = 'Pending';
+                let statusBg = 'bg-[#fff4e6]';
+                let statusText = 'text-[#fd7e14]';
+
+                if (isApproved) {
+                  status = 'Approved';
+                  statusBg = 'bg-[#e7f5ff]';
+                  statusText = 'text-[#339af0]';
+                } else if (isSuspended) {
+                  status = 'Rejected';
+                  statusBg = 'bg-[#ffe3e3]';
+                  statusText = 'text-[#fa5252]';
+                }
+
+                return (
+                  <tr key={workshop.id} className="border-b border-[#e9ecef] hover:bg-slate-50 transition-colors">
+                    <td className="py-4 pr-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-[48px] h-[48px] rounded-md bg-gradient-to-br ${imageColor} shrink-0`}></div>
+                        <div>
+                          <div className="font-semibold text-slate-800">{title}</div>
+                          <div className="text-[13px] text-[#adb5bd]">{subtitle}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`px-[8px] py-[2px] rounded-[4px] text-[12px] font-medium bg-[#e3f9f0] text-[#1fa46b]`}>
+                        {categoryText}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 font-medium text-slate-700">{instructorName}</td>
+                    <td className="py-4 px-4 font-medium text-slate-700">{duration}</td>
+                    <td className="py-4 px-4">
+                      {regMax > 0 ? (
+                        <div className="flex flex-col gap-1 w-[80px]">
+                          <span className="text-[13px] font-medium text-slate-700">{regCurrent} / {regMax}</span>
+                          <div className="w-full bg-[#ececec] h-[6px] rounded-full overflow-hidden">
+                            <div 
+                              className="bg-[#8b5cf6] h-full rounded-full" 
+                              style={{ width: `${Math.min(100, (regCurrent / regMax) * 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1 w-[80px]">
+                          <span className="text-[13px] font-medium text-slate-700">N/A</span>
+                          <div className="w-full bg-[#ececec] h-[6px] rounded-full overflow-hidden">
+                            <div className="bg-[#ececec] h-full rounded-full w-0"></div>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 font-medium text-slate-700">{price}</td>
+                    <td className="py-4 px-4">
+                      <span className={`px-[10px] py-[4px] rounded-full text-[12px] font-semibold ${statusBg} ${statusText}`}>
+                        {status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <button className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded cursor-pointer">
+                        <Eye className="w-5 h-5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
     </div>
