@@ -6,6 +6,7 @@ interface AdminUser {
   email: string;
   name: string;
   role: string;
+  phone?: string;
 }
 
 interface AuthState {
@@ -24,10 +25,12 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       setAuth: (admin, token) => {
         localStorage.setItem('admin_token', token);
+        document.cookie = `admin_token=${token}; path=/; max-age=604800; samesite=strict`; // 7 days
         set({ admin, token, isAuthenticated: true });
       },
       logout: () => {
         localStorage.removeItem('admin_token');
+        document.cookie = `admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
         set({
           admin: null,
           token: null,

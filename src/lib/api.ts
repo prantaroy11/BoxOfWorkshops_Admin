@@ -17,6 +17,7 @@ async function request<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...((options.headers as Record<string, string>) || {}),
     },
+    cache: 'no-store', // Prevent Next.js from caching API calls
     ...options,
   };
 
@@ -27,14 +28,39 @@ async function request<T>(
 
   if (response.status === 401) {
     localStorage.removeItem('admin_token');
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
+    if (typeof document !== 'undefined') {
+      document.cookie = `admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    }
+    
+    // Only redirect if we are not already trying to log in
+    if (!endpoint.includes('/login')) {
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || 'Something went wrong');
+    const errorData = await response.json().catch(() => ({}));
+    let errorMessage = 'Something went wrong';
+    
+    if (typeof errorData.message === 'string') {
+      errorMessage = errorData.message;
+    } else if (typeof errorData.error === 'string') {
+      errorMessage = errorData.error;
+    } else if (errorData.message?.message) {
+      errorMessage = errorData.message.message;
+    } else if (errorData.error?.message) {
+      errorMessage = errorData.error.message;
+    } else if (errorData.message) {
+      errorMessage = JSON.stringify(errorData.message);
+    } else if (errorData.error) {
+      errorMessage = JSON.stringify(errorData.error);
+    }
+
+    throw new Error(errorMessage);
   }
+
+
 
   return response.json();
 }
