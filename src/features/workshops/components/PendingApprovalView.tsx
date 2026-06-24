@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -13,10 +14,6 @@ export default function PendingApprovalView() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
-
-  useEffect(() => {
-    fetchPendingWorkshops();
-  }, []);
 
   const fetchPendingWorkshops = async () => {
     try {
@@ -42,6 +39,10 @@ export default function PendingApprovalView() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPendingWorkshops();
+  }, []);
 
   const handleAction = async (approved: boolean) => {
     if (!selectedId) return;

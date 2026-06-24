@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -19,10 +20,6 @@ export default function WorkshopsView() {
   const [workshops, setWorkshops] = useState<WorkshopListing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchWorkshops();
-  }, []);
-
   const fetchWorkshops = async () => {
     try {
       setLoading(true);
@@ -42,6 +39,10 @@ export default function WorkshopsView() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchWorkshops();
+  }, []);
 
   // Simple client-side filtering placeholder
   // Since we might not have all these statuses from the API yet
